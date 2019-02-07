@@ -1,4 +1,5 @@
-personal_ws-1.1 en 144 utf-8
+personal_ws-1.1 en 149 utf-8
+9b0
 abc
 abspath
 abstractmethod
@@ -94,9 +95,11 @@ pylint
 pylintrc
 PyPI
 pytest
+python3
 R1718
 rawsource
 rc
+rcfile
 readlines
 README
 Regiester
@@ -131,6 +134,8 @@ txt
 typ
 url
 utf
+v1
+v2
 vcs
 W0122
 whitelist
