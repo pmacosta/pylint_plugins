@@ -84,18 +84,6 @@ IS_PY3 = sys.hexversion > 0x03000000
 ###
 # Functions
 ###
-def _grep(fname, words):
-    """Return line numbers in which words appear in a file."""
-    # pylint: disable=W0631
-    pat = "(.*[^a-zA-Z]|^){}([^a-zA-Z].*|$)"
-    regexps = [(word, re.compile(pat.format(word))) for word in words]
-    ldict = collections.defaultdict(list)
-    for num, line in enumerate(_read_file(fname)):
-        for word in [word for word, regexp in regexps if regexp.match(line)]:
-            ldict[word].append(num + 1)
-    return ldict
-
-
 def _cleanup_word(word):
     """Strip out leading trailing spaces, quotes and double quotes."""
     if not word.strip():
@@ -107,6 +95,18 @@ def _cleanup_word(word):
         new_word = word.strip().strip('"').strip().strip("'").strip()
         new_word = new_word.strip('"').strip().strip("'")
     return new_word
+
+
+def _grep(fname, words):
+    """Return line numbers in which words appear in a file."""
+    # pylint: disable=W0631
+    pat = "(.*[^a-zA-Z]|^){}([^a-zA-Z].*|$)"
+    regexps = [(word, re.compile(pat.format(word))) for word in words]
+    ldict = collections.defaultdict(list)
+    for num, line in enumerate(_read_file(fname)):
+        for word in [word for word, regexp in regexps if regexp.match(line)]:
+            ldict[word].append(num + 1)
+    return ldict
 
 
 def _read_file(fname):
@@ -133,7 +133,7 @@ def check_spelling(node):
         obj = Popen(cmd, stdout=PIPE, stderr=PIPE)
         stdout = _tostr(obj.communicate()[0]).split(os.linesep)
         words = [_cleanup_word(word) for word in stdout if word.strip()]
-        words = sorted(list(set([word for word in words])))
+        words = sorted(list(set([word for word in words if word])))
         if words:
             ldict = _grep(fname, words)
             for word, lines in [(word, ldict[word]) for word in words]:
