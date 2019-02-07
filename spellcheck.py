@@ -1,14 +1,19 @@
 # spellcheck.py
 # Copyright (c) 2018-2019 Pablo Acosta-Serafini
 # See LICENSE for details
-# pylint: disable=C0111,R1718
+# pylint: disable=C0111,C0411,E1129,R0205,R1718,W1113
 
 # Standard library imports
 import collections
+import decorator
+import io
 import os
+import platform
 import re
 from subprocess import Popen, PIPE
 import sys
+import tempfile
+import types
 
 # Literal copy from [...]/site-packages/pip/_vendor/compat.py
 try:
@@ -84,17 +89,51 @@ IS_PY3 = sys.hexversion > 0x03000000
 ###
 # Functions
 ###
-def _cleanup_word(word):
-    """Strip out leading trailing spaces, quotes and double quotes."""
-    if not word.strip():
-        return ""
-    new_word = word.strip().strip('"').strip().strip("'").strip()
-    new_word = new_word.strip('"').strip().strip("'")
-    while new_word != word:
-        word = new_word
-        new_word = word.strip().strip('"').strip().strip("'").strip()
-        new_word = new_word.strip('"').strip().strip("'")
-    return new_word
+@decorator.contextmanager
+def ignored(*exceptions):
+    try:
+        yield
+    except exceptions:
+        pass
+
+
+class TmpFile(object):
+    """
+    Use a temporary file within context.
+
+    From pmisc package
+    """
+
+    def __init__(self, fpointer=None, *args, **kwargs):  # noqa
+        if (
+            fpointer
+            and (not isinstance(fpointer, types.FunctionType))
+            and (not isinstance(fpointer, types.LambdaType))
+        ):
+            raise RuntimeError("Argument `fpointer` is not valid")
+        self._fname = None
+        self._fpointer = fpointer
+        self._args = args
+        self._kwargs = kwargs
+
+    def __enter__(self):  # noqa
+        fdesc, fname = tempfile.mkstemp()
+        # fdesc is an OS-level file descriptor, see problems if this
+        # is not properly closed in this post:
+        # https://www.logilab.org/blogentry/17873
+        os.close(fdesc)
+        if platform.system().lower() == "windows":  # pragma: no cover
+            fname = fname.replace(os.sep, "/")
+        self._fname = fname
+        if self._fpointer:
+            with open(self._fname, "w") as fobj:
+                self._fpointer(fobj, *self._args, **self._kwargs)
+        return self._fname
+
+    def __exit__(self, exc_type, exc_value, exc_tb):  # noqa
+        with ignored(OSError):
+            os.remove(self._fname)
+        return not exc_type is not None
 
 
 def _grep(fname, words):
@@ -124,6 +163,7 @@ def _tostr(obj):  # pragma: no cover
 def check_spelling(node):
     """Check spelling against whitelist."""
     # pylint: disable=R0914
+    regexp = re.compile(r"(?:[^a-zA-Z]*|^)*([a-zA-Z]+)(?:[^a-zA-Z]*|$)*")
     fname = os.path.abspath(node.file)
     sdir = os.path.dirname(os.path.abspath(__file__))
     pdict = os.path.join(os.path.dirname(sdir), "data", "whitelist.en.pws")
@@ -132,8 +172,20 @@ def check_spelling(node):
         cmd = ["hunspell", "-p", pdict, "-l", fname]
         obj = Popen(cmd, stdout=PIPE, stderr=PIPE)
         stdout = _tostr(obj.communicate()[0]).split(os.linesep)
-        words = [_cleanup_word(word) for word in stdout if word.strip()]
-        words = sorted(list(set([word for word in words if word])))
+        # hunspell has trouble with apostrophes and other delimiters out-of-the-box
+        words = []
+        for word in [word for word in stdout if word.strip()]:
+            match = regexp.match(word)
+            if match:
+                words.append(match.groups()[0])
+        words = sorted(list(set(words)))
+        func = lambda x: x.write(os.linesep.join(words))
+        with TmpFile(func) as temp_fname:
+            cmd = ["hunspell", "-p", pdict, "-l", temp_fname]
+            with io.open(temp_fname) as fobj:
+                obj = Popen(cmd, stdin=fobj, stdout=PIPE, stderr=PIPE)
+                stdout = _tostr(obj.communicate()[0]).split(os.linesep)
+        words = sorted(list(set([word.strip() for word in stdout if word.strip()])))
         if words:
             ldict = _grep(fname, words)
             for word, lines in [(word, ldict[word]) for word in words]:
