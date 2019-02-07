@@ -1,11 +1,10 @@
-# aspell.py
+# spellcheck.py
 # Copyright (c) 2018-2019 Pablo Acosta-Serafini
 # See LICENSE for details
-# pylint: disable=C0111
+# pylint: disable=C0111,R1718
 
 # Standard library imports
 import collections
-import io
 import os
 import re
 from subprocess import Popen, PIPE
@@ -89,12 +88,25 @@ def _grep(fname, words):
     """Return line numbers in which words appear in a file."""
     # pylint: disable=W0631
     pat = "(.*[^a-zA-Z]|^){}([^a-zA-Z].*|$)"
-    regexps = zip(words, [re.compile(pat.format(word)) for word in words])
+    regexps = [(word, re.compile(pat.format(word))) for word in words]
     ldict = collections.defaultdict(list)
     for num, line in enumerate(_read_file(fname)):
         for word in [word for word, regexp in regexps if regexp.match(line)]:
             ldict[word].append(num + 1)
     return ldict
+
+
+def _cleanup_word(word):
+    """Strip out leading trailing spaces, quotes and double quotes."""
+    if not word.strip():
+        return ""
+    new_word = word.strip().strip('"').strip().strip("'").strip()
+    new_word = new_word.strip('"').strip().strip("'")
+    while new_word != word:
+        word = new_word
+        new_word = word.strip().strip('"').strip().strip("'").strip()
+        new_word = new_word.strip('"').strip().strip("'")
+    return new_word
 
 
 def _read_file(fname):
@@ -116,12 +128,12 @@ def check_spelling(node):
     sdir = os.path.dirname(os.path.abspath(__file__))
     pdict = os.path.join(os.path.dirname(sdir), "data", "whitelist.en.pws")
     ret = []
-    if which("aspell"):
-        cmd = ["aspell", "--lang=en", "--personal="+pdict, "list"]
-        with io.open(fname) as fobj:
-            obj = Popen(cmd, stdin=fobj, stdout=PIPE, stderr=PIPE)
-            stdout = _tostr(obj.communicate()[0]).split(os.linesep)
-        words = sorted(list(set([line for line in stdout if line.strip()])))
+    if which("hunspell"):
+        cmd = ["hunspell", "-p", pdict, "-l", fname]
+        obj = Popen(cmd, stdout=PIPE, stderr=PIPE)
+        stdout = _tostr(obj.communicate()[0]).split(os.linesep)
+        words = [_cleanup_word(word) for word in stdout if word.strip()]
+        words = sorted(list(set([word for word in words])))
         if words:
             ldict = _grep(fname, words)
             for word, lines in [(word, ldict[word]) for word in words]:
@@ -133,19 +145,14 @@ def check_spelling(node):
 ###
 # Classes
 ###
-class AspellChecker(BaseChecker):
-    """
-    Check for header compliance.
-
-    A compliant header includes the name of the file in the first usable line, and
-    an up-to-date copyright notice.
-    """
+class SpellChecker(BaseChecker):
+    """Check for spelling."""
 
     __implements__ = IRawChecker
 
-    MISSPELLED_WORD = "aspell"
+    MISSPELLED_WORD = "spellchecker"
 
-    name = "header-compliance"
+    name = "spellchecker"
     msgs = {"W9904": ("Misspelled word %s", MISSPELLED_WORD, "Misspelled word")}
     options = ()
 
@@ -157,4 +164,4 @@ class AspellChecker(BaseChecker):
 
 def register(linter):
     """Register checker."""
-    linter.register_checker(AspellChecker(linter))
+    linter.register_checker(SpellChecker(linter))
