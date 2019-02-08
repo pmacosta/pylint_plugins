@@ -1,4 +1,7 @@
 personal_ws-1.1 en 149 utf-8
+fnmatch
+getcwd
+isabs
 C0411
 E1129
 W1113

@@ -6,6 +6,7 @@
 # Standard library imports
 import collections
 import decorator
+from fnmatch import fnmatch
 import io
 import os
 import platform
@@ -148,6 +149,14 @@ def _grep(fname, words):
     return ldict
 
 
+def _make_abspath(value):
+    """Homogenize files to have absolute paths."""
+    value = value.strip()
+    if not os.path.isabs(value):
+        value = os.path.abspath(os.path.join(os.getcwd(), value))
+    return value
+
+
 def _read_file(fname):
     """Return file lines as strings."""
     with open(fname) as fobj:
@@ -166,6 +175,11 @@ def check_spelling(node):
     regexp = re.compile(r"(?:[^a-zA-Z]*|^)*([a-zA-Z]+)(?:[^a-zA-Z]*|$)*")
     fname = os.path.abspath(node.file)
     sdir = os.path.dirname(os.path.abspath(__file__))
+    exclude_fname = os.path.join(os.path.dirname(sdir), "data", "exclude-spelling")
+    if os.path.exists(exclude_fname):
+        patterns = [_make_abspath(item) for item in _read_file(exclude_fname)]
+        if any(fnmatch(fname, pattern) for pattern in patterns):
+            return []
     pdict = os.path.join(os.path.dirname(sdir), "data", "whitelist.en.pws")
     ret = []
     if which("hunspell"):
