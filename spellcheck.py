@@ -269,10 +269,15 @@ class SpellChecker(BaseChecker):
     def process_module(self, node):
         """Process a module. Content is accessible via node.stream() function."""
         # pylint: disable=E1101
+        sdir = os.path.dirname(os.path.abspath(__file__))
+        whitelist_fname = self.config.whitelist
+        exclude_fname = self.config.exclude
+        if whitelist_fname:
+            whitelist_fname = os.path.join(sdir, whitelist_fname)
+        if exclude_fname:
+            exclude_fname = os.path.join(sdir, exclude_fname)
         for line, args in check_spelling(
-            node,
-            whitelist_fname=self.config.whitelist,
-            exclude_fname=self.config.exclude,
+            node, whitelist_fname=whitelist_fname, exclude_fname=exclude_fname
         ):
             self.add_message(self.MISSPELLED_WORD, line=line, args=args)
 

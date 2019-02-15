@@ -59,8 +59,6 @@ def check_header(node, comment="#", header_ref=""):
             file=sys.stderr,
         )
         return []
-    header_ref = os.path.abspath(header_ref)
-    # print("Using {0}".format(header_ref))
     fullname = os.path.basename(os.path.abspath(node.file))
     basename = os.path.basename(os.path.abspath(node.file))
     current_year = datetime.datetime.now().year
@@ -143,7 +141,11 @@ class HeaderChecker(BaseChecker):
     def process_module(self, node):
         """Process a module. Content is accessible via node.stream() function."""
         # pylint: disable=E1101
-        linenos = check_header(node, header_ref=self.config.header_ref)
+        header_ref = self.config.header_ref.strip()
+        sdir = os.path.dirname(os.path.abspath(__file__))
+        if header_ref:
+            header_ref = os.path.join(sdir, header_ref)
+        linenos = check_header(node, header_ref=header_ref)
         for lineno in linenos:
             self.add_message(self.NON_COMPLIANT_HEADER, line=lineno)
 
