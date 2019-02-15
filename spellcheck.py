@@ -1,7 +1,7 @@
 # spellcheck.py
 # Copyright (c) 2018-2019 Pablo Acosta-Serafini
 # See LICENSE for details
-# pylint: disable=C0111,C0411,E1129,R0205,R1718,W1113
+# pylint: disable=C0111,C0411,E1129,R0205,R0903,R1718,W1113
 
 # Standard library imports
 import collections
@@ -85,6 +85,8 @@ from pylint.checkers import BaseChecker
 # Global variables
 ###
 IS_PY3 = sys.hexversion > 0x03000000
+REF_WHITELIST = os.path.join("data", "whitelist.en.pws")
+REF_EXCLUDE = os.path.join("data", "exclude-spelling")
 
 
 ###
@@ -137,6 +139,23 @@ class TmpFile(object):
         return not exc_type is not None
 
 
+def _find_ref_fname(node, ref_fname):
+    """
+    Find reference file.
+
+    Start one directory above where current script is located
+    """
+    curr_dir = ""
+    next_dir = os.path.dirname(os.path.dirname(os.path.abspath(node.file)))
+    while next_dir != curr_dir:
+        curr_dir = next_dir
+        rcfile = os.path.join(curr_dir, ref_fname)
+        if os.path.exists(rcfile):
+            return rcfile
+        next_dir = os.path.dirname(curr_dir)
+    return ""
+
+
 def _grep(fname, words):
     """Return line numbers in which words appear in a file."""
     # pylint: disable=W0631
@@ -169,21 +188,26 @@ def _tostr(obj):  # pragma: no cover
     return obj if isinstance(obj, str) else (obj.decode() if IS_PY3 else obj.encode())
 
 
-def check_spelling(node):
+def check_spelling(node, whitelist_fname="", exclude_fname=""):
     """Check spelling against whitelist."""
     # pylint: disable=R0914
     regexp = re.compile(r"(?:[^a-zA-Z]*|^)*([a-zA-Z]+)(?:[^a-zA-Z]*|$)*")
     fname = os.path.abspath(node.file)
-    sdir = os.path.dirname(os.path.abspath(__file__))
-    exclude_fname = os.path.join(os.path.dirname(sdir), "data", "exclude-spelling")
+    whitelist_fname = whitelist_fname.strip() or _find_ref_fname(node, REF_WHITELIST)
+    exclude_fname = exclude_fname.strip() or _find_ref_fname(node, REF_EXCLUDE)
+    if whitelist_fname:
+        whitelist_fname = os.path.abspath(whitelist_fname)
+        # print("Using {0}".format(whitelist_fname))
+    if exclude_fname:
+        exclude_fname = os.path.abspath(exclude_fname)
+        # print("Using {0}".format(exclude_fname))
     if os.path.exists(exclude_fname):
         patterns = [_make_abspath(item) for item in _read_file(exclude_fname)]
         if any(fnmatch(fname, pattern) for pattern in patterns):
             return []
-    pdict = os.path.join(os.path.dirname(sdir), "data", "whitelist.en.pws")
     ret = []
     if which("hunspell"):
-        cmd = ["hunspell", "-p", pdict, "-l", fname]
+        cmd = ["hunspell", "-p", whitelist_fname, "-l", fname]
         obj = Popen(cmd, stdout=PIPE, stderr=PIPE)
         stdout = _tostr(obj.communicate()[0]).split(os.linesep)
         # hunspell has trouble with apostrophes and other delimiters out-of-the-box
@@ -195,7 +219,7 @@ def check_spelling(node):
         words = sorted(list(set(words)))
         func = lambda x: x.write(os.linesep.join(words))
         with TmpFile(func) as temp_fname:
-            cmd = ["hunspell", "-p", pdict, "-l", temp_fname]
+            cmd = ["hunspell", "-p", whitelist_fname, "-l", temp_fname]
             with io.open(temp_fname) as fobj:
                 obj = Popen(cmd, stdin=fobj, stdout=PIPE, stderr=PIPE)
                 stdout = _tostr(obj.communicate()[0]).split(os.linesep)
@@ -220,11 +244,36 @@ class SpellChecker(BaseChecker):
 
     name = "spellchecker"
     msgs = {"W9904": ("Misspelled word %s", MISSPELLED_WORD, "Misspelled word")}
-    options = ()
+
+    options = (
+        (
+            "whitelist",
+            {
+                "default": "",
+                "type": "string",
+                "metavar": "<whitelist>",
+                "help": "Whitelist",
+            },
+        ),
+        (
+            "exclude",
+            {
+                "default": "",
+                "type": "string",
+                "metavar": "<exclude file>",
+                "help": "File with patterns used to exclude files from spell checking",
+            },
+        ),
+    )
 
     def process_module(self, node):
         """Process a module. Content is accessible via node.stream() function."""
-        for line, args in check_spelling(node):
+        # pylint: disable=E1101
+        for line, args in check_spelling(
+            node,
+            whitelist_fname=self.config.whitelist,
+            exclude_fname=self.config.exclude,
+        ):
             self.add_message(self.MISSPELLED_WORD, line=line, args=args)
 
 

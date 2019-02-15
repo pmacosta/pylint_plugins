@@ -59,6 +59,8 @@ def check_header(node, comment="#", header_ref=""):
             file=sys.stderr,
         )
         return []
+    header_ref = os.path.abspath(header_ref)
+    # print("Using {0}".format(header_ref))
     fullname = os.path.basename(os.path.abspath(node.file))
     basename = os.path.basename(os.path.abspath(node.file))
     current_year = datetime.datetime.now().year
