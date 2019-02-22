@@ -1,19 +1,19 @@
 # spellcheck.py
 # Copyright (c) 2018-2019 Pablo Acosta-Serafini
 # See LICENSE for details
-# pylint: disable=C0111,C0411,E1129,R0205,R0903,R1718,W1113
+# pylint: disable=C0111,C0411,E1129,R0205,R0903,R0912,R1718,W1113
 
 # Standard library imports
 import collections
 import decorator
 from fnmatch import fnmatch
-import io
 import os
 import platform
 import re
-from subprocess import Popen, PIPE
+import subprocess
 import sys
 import tempfile
+import time
 import types
 
 # Literal copy from [...]/site-packages/pip/_vendor/compat.py
@@ -23,7 +23,7 @@ except ImportError:  # pragma: no cover
     # Implementation from Python 3.3
     def which(cmd, mode=os.F_OK | os.X_OK, path=None):
         """Mimic CLI which function, copied from Python 3.3 implementation."""
-        # pylint: disable=C0103,C0113,R0912,W0622
+        # pylint: disable=C0103,C0113,W0622
         # Check that a given file can be accessed with the correct mode.
         # Additionally check that `file` is not a directory, as on Windows
         # directories pass the os.access check.
@@ -183,6 +183,28 @@ def _read_file(fname):
             yield _tostr(line).strip()
 
 
+def _shcmd(cmd, timeout=15):
+    """Safely execute shell command."""
+    delay = 1.0
+    obj = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if sys.hexversion < 0x03000000:
+        while (obj.poll() is None) and (timeout > 0):
+            time.sleep(delay)
+            timeout -= delay
+        if not timeout:
+            obj.kill()
+        stdout = _tostr(obj.communicate()[0]).split(os.linesep)
+    else:
+        try:
+            stdout = _tostr(obj.communicate(timeout=timeout)[0]).split(os.linesep)
+        except subprocess.TimeoutExpired:
+            obj.kill()
+            stdout = _tostr(obj.communicate()[0]).split(os.linesep)
+    if obj.returncode:
+        raise RuntimeError("hunspell command could not be executed successfully")
+    return stdout
+
+
 def _tostr(obj):  # pragma: no cover
     """Convert to string if necessary."""
     return obj if isinstance(obj, str) else (obj.decode() if IS_PY3 else obj.encode())
@@ -195,34 +217,37 @@ def check_spelling(node, whitelist_fname="", exclude_fname=""):
     fname = os.path.abspath(node.file)
     whitelist_fname = whitelist_fname.strip() or _find_ref_fname(node, REF_WHITELIST)
     exclude_fname = exclude_fname.strip() or _find_ref_fname(node, REF_EXCLUDE)
+    cmd = ["hunspell"]
     if whitelist_fname:
         whitelist_fname = os.path.abspath(whitelist_fname)
-        # print("Using {0}".format(whitelist_fname))
+        if not os.path.exists(whitelist_fname):
+            print("WARNING: Whitelist file {0} not found".format(whitelist_fname))
+        else:
+            cmd += ["-p", whitelist_fname]
+            # print("Using {0}".format(whitelist_fname))
     if exclude_fname:
         exclude_fname = os.path.abspath(exclude_fname)
-        # print("Using {0}".format(exclude_fname))
+        if not os.path.exists(exclude_fname):
+            print("WARNING: exclude file {0} not found".format(exclude_fname))
+        print("Using {0}".format(exclude_fname))
     if os.path.exists(exclude_fname):
         patterns = [_make_abspath(item) for item in _read_file(exclude_fname)]
         if any(fnmatch(fname, pattern) for pattern in patterns):
             return []
     ret = []
     if which("hunspell"):
-        cmd = ["hunspell", "-p", whitelist_fname, "-l", fname]
-        obj = Popen(cmd, stdout=PIPE, stderr=PIPE)
-        stdout = _tostr(obj.communicate()[0]).split(os.linesep)
+        cmd += ["-l"]
+        stdout = _shcmd(cmd + [fname])
         # hunspell has trouble with apostrophes and other delimiters out-of-the-box
         words = []
         for word in [word for word in stdout if word.strip()]:
             match = regexp.match(word)
             if match:
-                words.append(match.groups()[0])
+                words.append(match.groups()[0].strip())
         words = sorted(list(set(words)))
         func = lambda x: x.write(os.linesep.join(words))
         with TmpFile(func) as temp_fname:
-            cmd = ["hunspell", "-p", whitelist_fname, "-l", temp_fname]
-            with io.open(temp_fname) as fobj:
-                obj = Popen(cmd, stdin=fobj, stdout=PIPE, stderr=PIPE)
-                stdout = _tostr(obj.communicate()[0]).split(os.linesep)
+            stdout = _shcmd(cmd + [temp_fname])
         words = sorted(list(set([word.strip() for word in stdout if word.strip()])))
         if words:
             ldict = _grep(fname, words)
@@ -270,12 +295,12 @@ class SpellChecker(BaseChecker):
         """Process a module. Content is accessible via node.stream() function."""
         # pylint: disable=E1101
         sdir = os.path.dirname(os.path.abspath(__file__))
-        whitelist_fname = self.config.whitelist
-        exclude_fname = self.config.exclude
+        whitelist_fname = _tostr(self.config.whitelist)
+        exclude_fname = _tostr(self.config.exclude)
         if whitelist_fname:
-            whitelist_fname = os.path.join(sdir, whitelist_fname)
+            whitelist_fname = os.path.abspath(os.path.join(sdir, whitelist_fname))
         if exclude_fname:
-            exclude_fname = os.path.join(sdir, exclude_fname)
+            exclude_fname = os.path.abspath(os.path.join(sdir, exclude_fname))
         for line, args in check_spelling(
             node, whitelist_fname=whitelist_fname, exclude_fname=exclude_fname
         ):
