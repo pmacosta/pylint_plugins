@@ -1,7 +1,7 @@
 # spellcheck.py
 # Copyright (c) 2018-2019 Pablo Acosta-Serafini
 # See LICENSE for details
-# pylint: disable=C0111,C0411,E1129,R0205,R0903,R0912,R1718,W1113
+# pylint: disable=C0111,C0325,C0411,E1101,E1123,E1129,R0205,R0903,R0912,R1718,W1113
 
 # Standard library imports
 import collections
@@ -193,13 +193,15 @@ def _shcmd(cmd, timeout=15):
             timeout -= delay
         if not timeout:
             obj.kill()
-        stdout = _tostr(obj.communicate()[0]).split(os.linesep)
+        stdout, stderr = obj.communicate()
     else:
         try:
-            stdout = _tostr(obj.communicate(timeout=timeout)[0]).split(os.linesep)
+            stdout, stderr = obj.communicate(timeout=timeout)
         except subprocess.TimeoutExpired:
             obj.kill()
-            stdout = _tostr(obj.communicate()[0]).split(os.linesep)
+            stdout, stderr = obj.communicate()
+    stdout = _tostr(stdout).split(os.linesep)
+    stderr = _tostr(stderr).split(os.linesep)
     if obj.returncode:
         msg = (
             ["hunspell command could not be executed successfully"]
@@ -300,7 +302,6 @@ class SpellChecker(BaseChecker):
 
     def process_module(self, node):
         """Process a module. Content is accessible via node.stream() function."""
-        # pylint: disable=E1101
         sdir = os.path.dirname(os.path.abspath(__file__))
         whitelist_fname = _tostr(self.config.whitelist)
         exclude_fname = _tostr(self.config.exclude)
