@@ -259,6 +259,8 @@ def check_spelling(node, whitelist_fname="", exclude_fname=""):
             for word, lines in [(word, ldict[word]) for word in words]:
                 for lnum in lines:
                     ret.append((lnum, (word,)))
+    else:
+        print("hunspell binary not found, skipping")
     return ret
 
 
