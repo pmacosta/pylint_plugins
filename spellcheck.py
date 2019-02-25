@@ -234,7 +234,7 @@ def check_spelling(node, whitelist_fname="", exclude_fname=""):
         exclude_fname = os.path.abspath(exclude_fname)
         if not os.path.exists(exclude_fname):
             print("WARNING: exclude file {0} not found".format(exclude_fname))
-        print("Using {0}".format(exclude_fname))
+        # print("Using {0}".format(exclude_fname))
     if os.path.exists(exclude_fname):
         patterns = [_make_abspath(item) for item in _read_file(exclude_fname)]
         if any(fnmatch(fname, pattern) for pattern in patterns):
