@@ -201,9 +201,9 @@ def _shcmd(cmd, timeout=15):
             obj.kill()
             stdout, stderr = obj.communicate()
     if obj.returncode:
-        print("COMMAND: "+(" ".join(cmd)))
-        print("STDOUT:"+os.linesep+_tostr(stdout))
-        print("STDERR:"+os.linesep+_tostr(stderr))
+        print("COMMAND: " + (" ".join(cmd)))
+        print("STDOUT:" + os.linesep + _tostr(stdout))
+        print("STDERR:" + os.linesep + _tostr(stderr))
         raise RuntimeError("hunspell command could not be executed successfully")
     stdout = _tostr(stdout).split(os.linesep)
     stderr = _tostr(stderr).split(os.linesep)
