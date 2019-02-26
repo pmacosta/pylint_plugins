@@ -77,7 +77,8 @@ def check_header(node, comment="#", header_ref=""):
         for (num, line), ref in zip(content_lines(stream, comment), header_lines):
             if num > len(header_lines):
                 break
-            if line != ref:
+            regexp = re.compile(ref)
+            if not regexp.match(line):
                 linenos.append(num)
     return linenos
 
