@@ -75,8 +75,6 @@ def check_header(node, comment="#", header_ref=""):
     linenos = []
     with node.stream() as stream:
         for (num, line), ref in zip(content_lines(stream, comment), header_lines):
-            if num > len(header_lines):
-                break
             regexp = re.compile(ref)
             if not regexp.match(line):
                 linenos.append(num)
@@ -86,18 +84,36 @@ def check_header(node, comment="#", header_ref=""):
 def content_lines(stream, comment="#"):
     """Return non-empty lines of a package."""
     shebang_line_regexp = re.compile(r"^#!.*[ \\/](bash|python)$")
+    sl_mod_docstring = re.compile("('''|\"\"\").*('''|\"\"\")")
     encoding_dribble = "\xef\xbb\xbf"
-    encoded = False
+    shebang_line = False
+    in_mod_docstring = False
+    mod_string_done = False
     cregexp = re.compile(r"^{0} -\*- coding: utf-8 -\*-\s*".format(comment))
     for num, line in enumerate(stream):
         line = _tostr(line).rstrip()
         if (not num) and line.startswith(encoding_dribble):
             line = line[len(encoding_dribble) :]
-        coding_line = (num == 0) and (cregexp.match(line) is not None)
-        encoded = coding_line if not encoded else encoded
-        shebang_line = (num == int(encoded)) and shebang_line_regexp.match(line)
-        if line and (not coding_line) and (not shebang_line):
-            yield num + 1, line
+        # Skip shebang line
+        if (not num) and shebang_line_regexp.match(line):
+            shebang_line = True
+            continue
+        # Skip file encoding line
+        if (num == int(shebang_line)) and cregexp.match(line):
+            continue
+        # Skip single-line module docstrings
+        if (not num) and sl_mod_docstring.match(line):
+            continue
+        if (not num) and (not mod_string_done) and line.startswith('"""'):
+            in_mod_docstring = True
+            continue
+        if in_mod_docstring and line.endswith('"""'):
+            in_mod_docstring = False
+            mod_string_done = True
+            continue
+        if (not mod_string_done) and in_mod_docstring:
+            continue
+        yield num + 1, line
 
 
 ###
