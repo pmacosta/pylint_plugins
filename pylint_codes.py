@@ -37,6 +37,8 @@ def check_pylint(self, node):
     ret = []
     with node.stream() as stream:
         for num, input_line in enumerate(stream):
+            if "#" not in input_line:
+                continue
             input_line = _tostr(input_line).rstrip()
             line_match = soline.match(input_line)
             quoted_eol_match = quoted_eol.match(
