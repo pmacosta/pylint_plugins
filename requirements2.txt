@@ -1,0 +1,2 @@
+cyhunspell
+pylint>=1.9.4

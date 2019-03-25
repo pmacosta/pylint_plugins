@@ -1,7 +1,4 @@
-personal_ws-1.1 en 2097 utf-8
-tokenval
-tokennum
-tokenize
+personal_ws-1.1 en 2105 utf-8
 9b0
 a4paper
 aa
@@ -317,6 +314,7 @@ CVS
 cwd
 cwrite
 CXXFLAGS
+cyhunspell
 darg
 dargs
 darkblue
@@ -741,6 +739,7 @@ htaccess
 html
 htmlcov
 htmlhelp
+https
 hunspell
 Huy
 hvec
@@ -1257,6 +1256,7 @@ orangered
 ord
 OrderedDict
 orfilter
+org
 orow
 OrRd
 os
@@ -1884,6 +1884,9 @@ TODO
 toDocClass
 tofile
 tofloat
+tokenize
+tokennum
+tokenval
 tolist
 toplevel
 tostr
@@ -2012,6 +2015,8 @@ wheader
 whitelist
 whitesmoke
 whitespace
+wiki
+wikipedia
 win32
 winnorm
 wint
@@ -2087,6 +2092,7 @@ yticklabels
 yticks
 YY
 yzafpnum
+zA
 Za
 zcvf
 zepto
@@ -2098,4 +2104,3 @@ ZORDER
 zrs
 zvec
 zzz
-zA
