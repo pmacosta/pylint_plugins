@@ -6,6 +6,7 @@
 # Standard library imports
 import re
 import sys
+import tokenize
 
 # PyPI imports
 from pylint.interfaces import IRawChecker
@@ -13,8 +14,23 @@ from pylint.checkers import BaseChecker
 
 
 ###
+# Global variables
+###
+TEMPLATE = r"#\s*pylint:\s*disable\s*=\s*([\w|\s|\s*,\s*]+)"
+EOL = re.compile(r"(.*)\s*" + TEMPLATE + r"\s*$")
+SOLINE = re.compile(r"(^\s*)#\s*pylint\s*:\s*disable\s*=\s*([\w|\s|,]+)\s*")
+
+###
 # Functions
 ###
+def _get_comments(fname):
+    func = tokenize.generate_tokens
+    with open(fname, "r") as fobj:
+        for tokennum, tokenval, (num, _), _, _ in func(fobj.readline):
+            if tokennum == tokenize.COMMENT:
+                yield num, tokenval
+
+
 def _tostr(line):
     if isinstance(line, str):
         return line
@@ -23,38 +39,25 @@ def _tostr(line):
     return line.encode()
 
 
-def check_pylint(self, node):
+def check_pylint(fname, codes):
     """Check that there are no repeated Pylint codes per file."""
     # pylint: disable=R0914
-    rec = re.compile
-    soline = rec(r"(^\s*)#\s*pylint\s*:\s*disable\s*=\s*([\w|\s|,]+)\s*")
-    # Regular expression to get a Pylint disable directive but only
-    # if it is not in a string
-    template = r"#\s*pylint:\s*disable\s*=\s*([\w|\s|\s*,\s*]+)"
-    quoted_eol = rec(r'(.*)(\'|")\s*' + template + r"\s*\2\s*")
-    eol = rec(r"(.*)\s*" + template + r"\s*")
+    repeated_pylint_codes, pylint_codes_at_eol, unsorted_pylint_codes = codes
     file_tokens = []
     ret = []
-    with node.stream() as stream:
-        for num, input_line in enumerate(stream):
-            if "#" not in input_line:
-                continue
-            input_line = _tostr(input_line).rstrip()
-            line_match = soline.match(input_line)
-            quoted_eol_match = quoted_eol.match(
-                input_line.replace("\\n", "\n").replace("\\r", "\r")
-            )
-            eol_match = eol.match(input_line)
-            if eol_match and (not quoted_eol_match) and (not line_match):
-                ret.append((self.PYLINT_CODES_AT_EOL, num + 1))
-            if line_match:
-                unsorted_tokens = line_match.groups()[1].rstrip().split(",")
-                sorted_tokens = sorted(unsorted_tokens)
-                if any([item in file_tokens for item in sorted_tokens]):
-                    ret.append((self.REPEATED_PYLINT_CODES, num + 1))
-                if unsorted_tokens != sorted_tokens:
-                    ret.append((self.UNSORTED_PYLINT_CODES, num + 1))
-                file_tokens.extend(sorted_tokens)
+    for num, comment in _get_comments(fname):
+        line_match = SOLINE.match(comment)
+        eol_match = EOL.match(comment)
+        if eol_match and (not line_match):
+            ret.append((pylint_codes_at_eol, num))
+        if line_match:
+            unsorted_tokens = line_match.groups()[1].rstrip().split(",")
+            sorted_tokens = sorted(unsorted_tokens)
+            if any([item in file_tokens for item in sorted_tokens]):
+                ret.append((repeated_pylint_codes, num))
+            if unsorted_tokens != sorted_tokens:
+                ret.append((unsorted_pylint_codes, num))
+            file_tokens.extend(sorted_tokens)
     return ret
 
 
@@ -93,10 +96,34 @@ class PylintCodesChecker(BaseChecker):
     def process_module(self, node):
         # pylint: disable=R0201
         """Process a module. Content is accessible via node.stream() function."""
-        for code, lineno in check_pylint(self, node):
+        codes = (
+            self.REPEATED_PYLINT_CODES,
+            self.PYLINT_CODES_AT_EOL,
+            self.UNSORTED_PYLINT_CODES,
+        )
+        for code, lineno in check_pylint(node.file, codes):
             self.add_message(code, line=lineno)
 
 
 def register(linter):
     """Register checker."""
     linter.register_checker(PylintCodesChecker(linter))
+
+
+def main():
+    """Script entry point for testing."""
+    lint_file = sys.argv[1]
+
+    obj = PylintCodesChecker()
+    codes = (
+        obj.REPEATED_PYLINT_CODES,
+        obj.PYLINT_CODES_AT_EOL,
+        obj.UNSORTED_PYLINT_CODES,
+    )
+    for code, lineno in check_pylint(lint_file, codes):
+        print((code, lineno))
+
+
+if __name__ == "__main__":
+
+    main()
