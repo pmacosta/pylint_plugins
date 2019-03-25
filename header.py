@@ -49,33 +49,31 @@ def _tostr(obj):  # pragma: no cover
     return obj if isinstance(obj, str) else (obj.decode() if IS_PY3 else obj.encode())
 
 
-def check_header(node, comment="#", header_ref=""):
+def check_header(fname, streamer, comment="#", header_ref=""):
     """Check that all files have header line and copyright notice."""
     # pylint: disable=W0702
-    header_ref = header_ref.strip() or _find_header_ref(node.file)
+    header_ref = header_ref.strip() or _find_header_ref(fname)
     if not header_ref:
         print(
             "Reference header file .headerrc not found, skipping header check",
             file=sys.stderr,
         )
         return []
-    fullname = os.path.basename(os.path.abspath(node.file))
-    basename = os.path.basename(os.path.abspath(node.file))
+    fullname = os.path.basename(os.path.abspath(fname))
+    basename = os.path.basename(os.path.abspath(fname))
     current_year = datetime.datetime.now().year
     header_lines = []
     for line in _read_file(header_ref):
-        header_lines.append(
-            line.format(
-                comment=comment,
-                fullname=fullname,
-                basename=basename,
-                current_year=current_year,
-            )
+        line = line.format(
+            comment=comment,
+            fullname=fullname,
+            basename=basename,
+            current_year=current_year,
         )
+        header_lines.append(re.compile("^" + line + "$"))
     linenos = []
-    with node.stream() as stream:
-        for (num, line), ref in zip(content_lines(stream, comment), header_lines):
-            regexp = re.compile(ref)
+    with streamer() as stream:
+        for (num, line), regexp in zip(content_lines(stream, comment), header_lines):
             if not regexp.match(line):
                 linenos.append(num)
     return linenos
@@ -162,7 +160,9 @@ class HeaderChecker(BaseChecker):
         sdir = os.path.dirname(os.path.abspath(__file__))
         if header_ref:
             header_ref = os.path.join(sdir, header_ref)
-        linenos = check_header(node, header_ref=header_ref)
+        fname = node.file
+        streamer = node.stream
+        linenos = check_header(fname, streamer, header_ref=header_ref)
         for lineno in linenos:
             self.add_message(self.NON_COMPLIANT_HEADER, line=lineno)
 
@@ -170,3 +170,28 @@ class HeaderChecker(BaseChecker):
 def register(linter):
     """Register checker."""
     linter.register_checker(HeaderChecker(linter))
+
+
+def main():
+    """Script entry point for testing."""
+    header_ref = sys.argv[1]
+    lint_file = sys.argv[2]
+
+    class StreamFile(object):
+        # pylint: disable=R0903
+        """Stream class."""
+
+        def __enter__(self):  # noqa
+            with open(lint_file, "r") as fobj:
+                for line in fobj:
+                    yield line
+
+        def __exit__(self, exc_type, exc_value, exc_tb):  # noqa
+            return not exc_type is not None
+
+    linenos = check_header(lint_file, StreamFile, header_ref=header_ref)
+    print(linenos)
+
+
+if __name__ == "__main__":
+    main()
