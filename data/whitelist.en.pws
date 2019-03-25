@@ -1,4 +1,4 @@
-personal_ws-1.1 en 2105 utf-8
+personal_ws-1.1 en 2108 utf-8
 9b0
 a4paper
 aa
@@ -741,6 +741,7 @@ htmlcov
 htmlhelp
 https
 hunspell
+Hunspell
 Huy
 hvec
 hvector
@@ -2013,6 +2014,8 @@ wfloat
 wfreq
 wheader
 whitelist
+Whitelist
+WHITELIST
 whitesmoke
 whitespace
 wiki

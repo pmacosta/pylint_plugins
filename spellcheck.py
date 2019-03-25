@@ -155,7 +155,7 @@ def check_spelling(fname, whitelist_fname="", exclude_fname=""):
             line = line.strip()
             for word in re.split("[^a-zA-Z]", line):
                 if (not spell_obj.spell(word)) and (word not in whitelist):
-                    ret.append((num, (word,)))
+                    ret.append((num + 1, (word,)))
     return ret
 
 
@@ -204,7 +204,7 @@ class SpellChecker(BaseChecker):
             if exclude_fname:
                 exclude_fname = os.path.abspath(os.path.join(sdir, exclude_fname))
             for line, args in check_spelling(
-                node.fname, whitelist_fname=whitelist_fname, exclude_fname=exclude_fname
+                node.file, whitelist_fname=whitelist_fname, exclude_fname=exclude_fname
             ):
                 self.add_message(self.MISSPELLED_WORD, line=line, args=args)
         else:
