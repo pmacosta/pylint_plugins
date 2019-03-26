@@ -1,7 +1,7 @@
 # header.py
 # Copyright (c) 2018-2019 Pablo Acosta-Serafini
 # See LICENSE for details
-# pylint: disable=C0111
+# pylint: disable=C0111,R0205
 
 # Standard library imports
 from __future__ import print_function
@@ -14,45 +14,17 @@ import sys
 from pylint.interfaces import IRawChecker
 from pylint.checkers import BaseChecker
 
-
-###
-# Global variables
-###
-IS_PY3 = sys.hexversion > 0x03000000
+# Intra-package imports
+from common import _find_ref_fname, _read_file, _tostr, StreamFile
 
 
 ###
-# Functions
+# Functions (common with hook)
 ###
-def _find_header_ref(fname):
-    """Find .headerrc file."""
-    curr_dir = ""
-    next_dir = os.path.dirname(os.path.abspath(fname))
-    while next_dir != curr_dir:
-        curr_dir = next_dir
-        rcfile = os.path.join(curr_dir, ".headerrc")
-        if os.path.exists(rcfile):
-            return rcfile
-        next_dir = os.path.dirname(curr_dir)
-    return ""
-
-
-def _read_file(fname):
-    """Return file lines as strings."""
-    with open(fname) as fobj:
-        for line in fobj:
-            yield _tostr(line).strip()
-
-
-def _tostr(obj):  # pragma: no cover
-    """Convert to string if necessary."""
-    return obj if isinstance(obj, str) else (obj.decode() if IS_PY3 else obj.encode())
-
-
-def check_header(fname, streamer, comment="#", header_ref=""):
+def _check_header(fname, streamer, comment="#", header_ref=""):
     """Check that all files have header line and copyright notice."""
     # pylint: disable=W0702
-    header_ref = header_ref.strip() or _find_header_ref(fname)
+    header_ref = header_ref.strip() or _find_ref_fname(fname, ".headerrc")
     if not header_ref:
         print(
             "Reference header file .headerrc not found, skipping header check",
@@ -72,14 +44,14 @@ def check_header(fname, streamer, comment="#", header_ref=""):
         )
         header_lines.append(re.compile("^" + line + "$"))
     linenos = []
-    with streamer() as stream:
-        for (num, line), regexp in zip(content_lines(stream, comment), header_lines):
+    with streamer(fname) as stream:
+        for (num, line), regexp in zip(_content_lines(stream, comment), header_lines):
             if not regexp.match(line):
                 linenos.append(num)
     return linenos
 
 
-def content_lines(stream, comment="#"):
+def _content_lines(stream, comment="#"):
     """Return non-empty lines of a package."""
     shebang_line_regexp = re.compile(r"^#!.*[ \\/](bash|python)$")
     sl_mod_docstring = re.compile("('''|\"\"\").*('''|\"\"\")")
@@ -115,7 +87,7 @@ def content_lines(stream, comment="#"):
 
 
 ###
-# Classes
+# Plugin-specific classes and functions
 ###
 class HeaderChecker(BaseChecker):
     """
@@ -161,8 +133,7 @@ class HeaderChecker(BaseChecker):
         if header_ref:
             header_ref = os.path.join(sdir, header_ref)
         fname = node.file
-        streamer = node.stream
-        linenos = check_header(fname, streamer, header_ref=header_ref)
+        linenos = _check_header(fname, StreamFile, header_ref=header_ref)
         for lineno in linenos:
             self.add_message(self.NON_COMPLIANT_HEADER, line=lineno)
 
@@ -176,20 +147,7 @@ def main():
     """Script entry point for testing."""
     header_ref = sys.argv[1]
     lint_file = sys.argv[2]
-
-    class StreamFile(object):
-        # pylint: disable=R0903
-        """Stream class."""
-
-        def __enter__(self):  # noqa
-            with open(lint_file, "r") as fobj:
-                for line in fobj:
-                    yield line
-
-        def __exit__(self, exc_type, exc_value, exc_tb):  # noqa
-            return not exc_type is not None
-
-    linenos = check_header(lint_file, StreamFile, header_ref=header_ref)
+    linenos = _check_header(lint_file, StreamFile, header_ref=header_ref)
     print(linenos)
 
 

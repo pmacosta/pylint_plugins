@@ -31,14 +31,6 @@ def _get_comments(fname):
                 yield num, tokenval
 
 
-def _tostr(line):
-    if isinstance(line, str):
-        return line
-    if sys.hexversion > 0x03000000:
-        return line.decode()
-    return line.encode()
-
-
 def check_pylint(fname, codes):
     """Check that there are no repeated Pylint codes per file."""
     # pylint: disable=R0914
@@ -125,5 +117,4 @@ def main():
 
 
 if __name__ == "__main__":
-
     main()
