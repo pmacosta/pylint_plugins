@@ -1,8 +1,5 @@
-personal_ws-1.1 en 2108 utf-8
-Plugin
+personal_ws-1.1 en 2113 utf-8
 9b0
-SOLINE
-PYLINT
 a4paper
 aa
 aaa
@@ -318,6 +315,7 @@ cwd
 cwrite
 CXXFLAGS
 cyhunspell
+CyHunspell
 darg
 dargs
 darkblue
@@ -920,6 +918,7 @@ Leone's
 letterpaper
 lexpr
 lfpart
+libhunspell
 libs
 lightblue
 lightcoral
@@ -1350,6 +1349,7 @@ plst
 plt
 pluggy
 plugin
+Plugin
 plugins
 PLUGINS
 pmisc
@@ -1432,6 +1432,7 @@ pygtk
 pylint
 Pylint
 PyLint
+PYLINT
 PylintCodes
 PylintCodesChecker
 pylintrc
@@ -1716,6 +1717,7 @@ smin
 snum
 sobj
 soline
+SOLINE
 somefile
 sotw
 sourcelink
