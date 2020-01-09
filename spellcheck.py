@@ -1,5 +1,5 @@
 # spellcheck.py
-# Copyright (c) 2018-2019 Pablo Acosta-Serafini
+# Copyright (c) 2018-2020 Pablo Acosta-Serafini
 # See LICENSE for details
 # pylint: disable=C0111,C0325,C0411,E1101,E1123,E1129
 # pylint: disable=R0205,R0903,R0912,R0914,R1718,W0611,W0702,W1113

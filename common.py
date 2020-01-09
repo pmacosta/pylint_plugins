@@ -1,5 +1,5 @@
 # common.py
-# Copyright (c) 2018-2019 Pablo Acosta-Serafini
+# Copyright (c) 2018-2020 Pablo Acosta-Serafini
 # See LICENSE for details
 # pylint: disable=C0111,E1129,R0205,R0912,W0611,W1113
 
