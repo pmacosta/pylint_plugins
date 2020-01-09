@@ -1,7 +1,7 @@
 #!/bin/bash
 # shellcheck disable=SC1090,SC1091
 
-# Copyright (c) 2018-2019, Pablo Acosta-Serafini
+# Copyright (c) 2018-2020, Pablo Acosta-Serafini
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
