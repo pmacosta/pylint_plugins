@@ -1,7 +1,7 @@
 # spellcheck.py
 # Copyright (c) 2018-2020 Pablo Acosta-Serafini
 # See LICENSE for details
-# pylint: disable=C0111,C0325,C0411,C0413,E1101,E1123,E1129
+# pylint: disable=C0111,C0325,C0411,C0413,E0611,E1101,E1123,E1129
 # pylint: disable=R0205,R0903,R0912,R0914,R1718,W0611,W0702,W1113
 
 # Standard library imports
@@ -23,7 +23,7 @@ from pylint.checkers import BaseChecker
 
 # Intra-package imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from common import (
+from pylint_plugins.common import (
     _find_ref_fname,
     _grep,
     _make_abspath,
