@@ -9,6 +9,7 @@ from fnmatch import fnmatch
 import os
 import platform
 import re
+import shutil
 import sys
 
 # PyPI imports
@@ -29,7 +30,6 @@ from common import (
     _read_file,
     _shcmd,
     _tostr,
-    which,
     StreamFile,
     TmpFile,
 )
@@ -67,7 +67,7 @@ class Hunspell(object):
 
     def __init__(self, native, whitelist_fname, exclude_fname):
         """Check that hunspell binary can be found."""
-        if not which("hunspell"):
+        if not shutil.which("hunspell"):
             print("hunspell binary not found, skipping")
         self.native = native
         self.cmd = ["hunspell"]
@@ -155,7 +155,7 @@ class SpellChecker(BaseChecker):
 
     def process_module(self, node):
         """Process a module. Content is accessible via node.stream() function."""
-        if which("hunspell"):
+        if shutil.which("hunspell"):
             sdir = os.path.dirname(os.path.abspath(__file__))
             whitelist_fname = _tostr(self.config.whitelist)
             exclude_fname = _tostr(self.config.exclude)
