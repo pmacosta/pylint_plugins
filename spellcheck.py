@@ -22,8 +22,7 @@ from pylint.interfaces import IRawChecker
 from pylint.checkers import BaseChecker
 
 # Intra-package imports
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from pylint_plugins.common import (
+from common import (
     _find_ref_fname,
     _grep,
     _make_abspath,

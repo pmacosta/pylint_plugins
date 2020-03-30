@@ -1,7 +1,7 @@
 # header.py
 # Copyright (c) 2018-2020 Pablo Acosta-Serafini
 # See LICENSE for details
-# pylint: disable=C0111,C0413,E0611,R0205
+# pylint: disable=C0111,C0413,R0205
 
 # Standard library imports
 import datetime
@@ -14,8 +14,7 @@ from pylint.interfaces import IRawChecker
 from pylint.checkers import BaseChecker
 
 # Intra-package imports
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from pylint_plugins.common import _find_ref_fname, _read_file, _tostr, StreamFile
+from common import _find_ref_fname, _read_file, _tostr, StreamFile
 
 
 ###
