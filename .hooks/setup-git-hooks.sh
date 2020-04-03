@@ -1,8 +1,7 @@
 #!/bin/bash
-# shellcheck disable=SC1090,SC1091
-
-# Copyright (c) 2018-2020, Pablo Acosta-Serafini
-# All rights reserved.
+# setup-git-hooks.sh
+# Copyright (c) 2013-2020 Pablo Acosta-Serafini
+# See LICENSE for details
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -71,22 +70,25 @@ sdir=$(current_dir "${BASH_SOURCE[0]}")
 # Configure Git user name and email
 email=0
 personal_repo=0
-cfg_fname="${sdir}/repo-cfg.sh"
+cfg_fname="$(readlink -f "${sdir}/repo-cfg.sh")"
+echo "Checking config file ${cfg_fname}"
 if [ -f "${cfg_fname}" ]; then
+    # shellcheck disable=SC1090,SC1091
     source "${sdir}/repo-cfg.sh"
 else
     echo "Using default repo config"
 fi
 if [ "${email}" == 1 ]; then
+    echo "Configuring Git author information"
     if [ "${personal_repo}" == 1 ]; then
-        if [ "${PERSONAL_NAME}" != "" ] && [ "${PERSONAL_EMAIL}" != "" ]; then
-            echo "Configuring personal Git author information"
+        if [ -v PERSONAL_NAME ] && [ -v PERSONAL_EMAIL ]; then
+            echo -e "\\tPersonal"
             git config user.name "${PERSONAL_NAME}"
             git config user.email "${PERSONAL_EMAIL}"
         fi
     else
-        if [ "${WORK_NAME}" != "" ] && [ "${WORK_EMAIL}" != "" ]; then
-            echo "Configuring work Git author information"
+        if [ -v WORK_NAME ] && [ -v WORK_EMAIL ]; then
+            echo -e "\\tWork"
             git config user.name "${WORK_NAME}"
             git config user.email "${WORK_EMAIL}"
         fi
@@ -94,20 +96,26 @@ if [ "${email}" == 1 ]; then
 fi
 repo_dir=$(dirname "${sdir}")
 # Use pre-commit framework if possible
+hooks=('pre-commit')
 if [ -f "${repo_dir}/.pre-commit-config.yaml" ]; then
-    if which pre-commit &> /dev/null; then
+    if command -v pre-commit &> /dev/null; then
         cd "${repo_dir}" || exit 1
         echo "Setting up pre-commit framework"
         pre-commit install
-        finish 0
     fi
+    hooks=()
 fi
-# Default to legacy shell-based framework
-echo "Setting up shell pre-commit hook"
-git_hooks_dir=${repo_dir}/.git/hooks
-hooks=(pre-commit)
-cd "${git_hooks_dir}" || exit 1
-for hook in ${hooks[*]}; do
-	ln -s -f "${sdir}/${hook}" "${hook}"
-done
-finish 0
+gname="$(basename "$(git rev-parse --show-toplevel)")"
+if [ "${gname}" == "pypkg" ]; then
+    hooks+=('post-merge')
+fi
+if [ "${#hooks[@]}" != 0 ]; then
+    echo "Setting up shell hooks"
+    git_hooks_dir="$(git rev-parse --git-dir)"/hooks
+    mkdir -p "${git_hooks_dir}"
+    cd "${git_hooks_dir}" || exit 1
+    for hook in ${hooks[*]}; do
+        echo "Setting ${hook} hook"
+        ln -s -f "${sdir}/${hook}" "${hook}"
+    done
+fi
